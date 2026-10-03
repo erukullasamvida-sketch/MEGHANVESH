@@ -21,16 +21,16 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — BHUSANKET" },
+      { title: "MEGHANVESH" },
       {
         name: "description",
         content:
-          "Manage your BHUSANKET profile, notification preferences and language for landslide monitoring alerts.",
+          "Manage your account, anomaly notification preferences, and language.",
       },
-      { property: "og:title", content: "Settings — BHUSANKET" },
+      { property: "og:title", content: "MEGHANVESH | Settings" },
       {
         property: "og:description",
-        content: "Profile, notifications and language preferences for BHUSANKET.",
+        content: "Profile, sensor notifications, and language preferences.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -119,7 +119,7 @@ function SettingsPage() {
 
   const toggles: [keyof Prefs, string, string][] = [
     ["realtime_alerts", "Enable real-time alerts", "Show live alerts as monitoring data arrives"],
-    ["critical_alerts", "Critical alerts", "Always notify me about critical risk areas"],
+    ["critical_alerts", "Critical alerts", "Always notify me about critical sensor anomalies"],
     ["email_notifications", "Email notifications", "Send alert summaries to my email"],
     ["sms_notifications", "SMS notifications", "Send critical alerts by SMS"],
   ];

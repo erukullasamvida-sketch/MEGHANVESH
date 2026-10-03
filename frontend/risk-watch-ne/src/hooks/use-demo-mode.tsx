@@ -1,14 +1,15 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
-import type { RiskLevel } from "@/lib/risk";
+import type { DemoScenario } from "@/lib/demo-anomaly";
 
 type DemoModeContextValue = {
   demoActive: boolean;
-  demoLevel: RiskLevel | null;
-  demoAlertTriggered: boolean;
-  startDemo: (locationName?: string) => void;
-  stopDemo: () => void;
+  demoStationId: string;
+  demoScenario: DemoScenario;
+  demoStartedAt: string;
+  startDemo: () => void;
+  setDemoStationId: (stationId: string) => void;
+  setDemoScenario: (scenario: DemoScenario) => void;
   resetDemo: () => void;
 };
 
@@ -16,58 +17,37 @@ const DemoModeContext = createContext<DemoModeContextValue | null>(null);
 
 export function DemoModeProvider({ children }: { children: ReactNode }) {
   const [demoActive, setDemoActive] = useState(false);
-  const [demoLevel, setDemoLevel] = useState<RiskLevel | null>(null);
-  const [demoAlertTriggered, setDemoAlertTriggered] = useState(false);
-  const [selectedLocationName, setSelectedLocationName] = useState<string | undefined>();
+  const [demoStationId, setDemoStationId] = useState("AWS-ASSAM-001");
+  const [demoScenario, setDemoScenario] = useState<DemoScenario>("NORMAL");
+  const [demoStartedAt, setDemoStartedAt] = useState(() => new Date().toISOString());
 
-  useEffect(() => {
-    if (!demoActive) return;
-
-    setDemoLevel("moderate");
-    setDemoAlertTriggered(false);
-
-    const highTimer = window.setTimeout(() => setDemoLevel("high"), 2200);
-    const criticalTimer = window.setTimeout(() => setDemoLevel("critical"), 4600);
-    const alertTimer = window.setTimeout(() => {
-      setDemoAlertTriggered(true);
-      toast.error("Demo alert triggered", {
-        description: `${selectedLocationName ?? "Selected location"} reached Critical risk.`,
-      });
-    }, 5200);
-
-    return () => {
-      window.clearTimeout(highTimer);
-      window.clearTimeout(criticalTimer);
-      window.clearTimeout(alertTimer);
-    };
-  }, [demoActive, selectedLocationName]);
-
-  function startDemo(locationName?: string) {
-    setSelectedLocationName(locationName);
-    setDemoAlertTriggered(false);
-    setDemoLevel("moderate");
+  function startDemo() {
+    setDemoStartedAt(new Date().toISOString());
     setDemoActive(true);
   }
 
-  function stopDemo() {
-    setDemoActive(false);
-    setDemoLevel(null);
-    setDemoAlertTriggered(false);
-    setSelectedLocationName(undefined);
+  function chooseDemoScenario(scenario: DemoScenario) {
+    setDemoScenario(scenario);
+    setDemoStartedAt(new Date().toISOString());
   }
 
   function resetDemo() {
-    stopDemo();
+    setDemoActive(false);
+    setDemoStationId("AWS-ASSAM-001");
+    setDemoScenario("NORMAL");
+    setDemoStartedAt(new Date().toISOString());
   }
 
   return (
     <DemoModeContext.Provider
       value={{
         demoActive,
-        demoLevel,
-        demoAlertTriggered,
+        demoStationId,
+        demoScenario,
+        demoStartedAt,
         startDemo,
-        stopDemo,
+        setDemoStationId,
+        setDemoScenario: chooseDemoScenario,
         resetDemo,
       }}
     >

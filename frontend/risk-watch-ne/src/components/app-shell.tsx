@@ -6,33 +6,43 @@ import {
   BarChart3,
   Bell,
   Brain,
+  Check,
   Database,
   FileText,
   LayoutDashboard,
   LogOut,
   Map,
   Menu,
-  Mountain,
   Settings as SettingsIcon,
+  TriangleAlert,
   X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
-import { useLocationSelection } from "@/hooks/use-location-selection";
+import { useStationSelection } from "@/hooks/use-station-selection";
+import { useDemoMode } from "@/hooks/use-demo-mode";
 import { supabase } from "@/integrations/supabase/client";
-import { getLocations } from "@/lib/api/locations";
+import { getAWSStations } from "@/lib/api/aws";
+import {
+  DEMO_SCENARIOS,
+  getDemoScenarioDetails,
+  getDemoScenarioLabel,
+  type DemoScenario,
+} from "@/lib/demo-anomaly";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/risk-map", label: "Risk Map", icon: Map },
-  { to: "/prediction", label: "AI Prediction", icon: Brain },
-  { to: "/alerts", label: "Alerts", icon: Bell },
-  { to: "/analytics", label: "Reports", icon: BarChart3 },
-  { to: "/field-reports", label: "Field Reports", icon: FileText },
-  { to: "/data-sources", label: "Data Sources", icon: Database },
+  { to: "/risk-map", label: "AWS Station Map", icon: Map },
+  { to: "/prediction", label: "Anomaly Detection", icon: Brain },
+  { to: "/alerts", label: "Sensor Alerts", icon: Bell },
+  { to: "/analytics", label: "Sensor Analytics", icon: BarChart3 },
+  { to: "/field-reports", label: "Station Inspection", icon: FileText },
+  { to: "/data-sources", label: "AWS Data", icon: Database },
   { to: "/about", label: "About", icon: Activity },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
@@ -41,21 +51,95 @@ const MOBILE_NAV = [
   { to: "/dashboard", label: "Home", icon: LayoutDashboard },
   { to: "/risk-map", label: "Map", icon: Map },
   { to: "/alerts", label: "Alerts", icon: Bell },
-  { to: "/field-reports", label: "Reports", icon: FileText },
+  { to: "/field-reports", label: "Inspect", icon: FileText },
 ] as const;
 
 function Brand() {
   return (
     <div className="flex items-center gap-2.5 px-4 py-4">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary">
-        <Mountain className="h-5 w-5 text-primary-foreground" />
-      </div>
+      <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0 rounded-md" />
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-sidebar-foreground">BHUSANKET</p>
-        <p className="truncate text-[11px] text-sidebar-foreground/60">AI Risk Monitoring</p>
+        <p className="truncate text-sm font-semibold text-sidebar-foreground">MEGHANVESH</p>
+        <p className="truncate text-[11px] text-sidebar-foreground/60">SIH26073 · Station intelligence</p>
       </div>
     </div>
   );
+}
+
+export function DemoAnomalyNotifier() {
+  const { demoActive, demoStationId, demoScenario } = useDemoMode();
+  const previousState = useRef({ demoActive, demoScenario });
+  const notificationId = useRef<string | number>();
+
+  useEffect(() => {
+    const previous = previousState.current;
+    const scenarioChanged =
+      previous.demoActive !== demoActive || previous.demoScenario !== demoScenario;
+    previousState.current = { demoActive, demoScenario };
+
+    if (!scenarioChanged) return;
+
+    if (notificationId.current !== undefined) {
+      toast.dismiss(notificationId.current);
+      notificationId.current = undefined;
+    }
+    if (!demoActive || demoScenario === "NORMAL") return;
+
+    const details = getDemoScenarioDetails(demoScenario);
+    const stationId =
+      demoScenario === "TEMPERATURE_SPIKE"
+        ? "AWS-ASSAM-001"
+        : demoScenario === "PRESSURE_ANOMALY"
+          ? "AWS-MEGHALAYA-002"
+          : demoStationId;
+    const value =
+      demoScenario === "TEMPERATURE_SPIKE"
+        ? "49°C"
+        : demoScenario === "PRESSURE_ANOMALY"
+          ? "702 hPa"
+          : demoScenario === "HUMIDITY_ANOMALY"
+            ? `${details.values.relative_humidity}% relative humidity`
+            : undefined;
+    const status = demoScenario === "COMMUNICATION_FAILURE" ? "OFFLINE" : undefined;
+
+    notificationId.current = toast.custom(
+      (id) => (
+        <div
+          role="alert"
+          className="w-[min(380px,calc(100vw-2rem))] rounded-md border border-red-300 bg-red-950 p-4 text-white shadow-xl"
+        >
+          <div className="flex items-start gap-3">
+            <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-bold">ANOMALY DETECTED</p>
+                <button
+                  type="button"
+                  className="-mr-1 -mt-1 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"
+                  aria-label="Dismiss anomaly notification"
+                  onClick={() => toast.dismiss(id)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-1 break-words text-xs text-white/80">Station: {stationId}</p>
+              <p className="mt-1 text-sm font-semibold">Type: {getDemoScenarioLabel(demoScenario)}</p>
+              <p className="mt-1 text-xs text-white/85">
+                Severity: {details.severity}
+                {details.confidence !== undefined && ` · Confidence: ${details.confidence}%`}
+              </p>
+              {value && <p className="mt-1 text-xs text-white/85">Value: {value}</p>}
+              {status && <p className="mt-1 text-xs text-white/85">Status: {status}</p>}
+              <p className="mt-2 text-xs leading-relaxed text-white/75">{details.reason}</p>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: 8000, position: "bottom-right" },
+    );
+  }, [demoActive, demoScenario, demoStationId]);
+
+  return null;
 }
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -102,10 +186,32 @@ export function AppShell({
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { selectLocation } = useLocationSelection();
+  const { selectStation } = useStationSelection();
+  const {
+    demoActive,
+    demoStationId,
+    demoScenario,
+    startDemo,
+    setDemoStationId,
+    setDemoScenario,
+    resetDemo,
+  } = useDemoMode();
+  const { data: demoStations = [] } = useQuery({
+    queryKey: ["aws_demo_stations"],
+    queryFn: getAWSStations,
+    enabled: demoActive,
+  });
   const { data: searchResults = [], isFetching } = useQuery({
-    queryKey: ["backend_locations", search.trim()],
-    queryFn: () => getLocations(search),
+    queryKey: ["aws_station_search", search.trim()],
+    queryFn: async () => {
+      const query = search.trim().toLowerCase();
+      const stations = await getAWSStations();
+      return stations.filter(
+        (station) =>
+          station.name.toLowerCase().includes(query) ||
+          station.station_id.toLowerCase().includes(query),
+      );
+    },
     enabled: Boolean(search.trim()),
   });
 
@@ -180,7 +286,7 @@ export function AppShell({
             </button>
             <div className="relative block min-w-0 md:block">
               <Input
-                placeholder="Search locations, villages, or regions..."
+                placeholder="Search AWS stations..."
                 className="h-9 max-w-md"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -191,24 +297,24 @@ export function AppShell({
                     <p className="px-3 py-2 text-sm text-muted-foreground">Searching...</p>
                   )}
                   {!isFetching && searchResults.length === 0 && (
-                    <p className="px-3 py-2 text-sm text-muted-foreground">No locations found.</p>
+                    <p className="px-3 py-2 text-sm text-muted-foreground">No AWS stations found.</p>
                   )}
                   {!isFetching &&
-                    searchResults.map((location) => (
+                    searchResults.map((station) => (
                       <button
-                        key={location.id}
+                        key={station.station_id}
                         type="button"
                         className="block w-full px-3 py-2 text-left hover:bg-muted"
                         onClick={() => {
-                          selectLocation(location);
-                          setSearch(location.name);
+                          selectStation(station.station_id);
+                          setSearch(station.name);
                         }}
                       >
                         <span className="block text-sm font-medium text-foreground">
-                          {location.name}
+                          {station.name}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          {location.district}
+                          {station.station_id}
                         </span>
                       </button>
                     ))}
@@ -222,8 +328,24 @@ export function AppShell({
                 aria-label="Alerts"
               >
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-risk-critical" />
               </Link>
+              {demoActive ? (
+                <span className="rounded-md border border-orange-800/20 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-900">
+                  DEMO MODE
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    selectStation(demoStationId);
+                    startDemo();
+                  }}
+                >
+                  Enable Demo Mode
+                </Button>
+              )}
               <div className="flex items-center gap-2">
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                   {(user?.name ?? "A").charAt(0).toUpperCase()}
@@ -239,12 +361,66 @@ export function AppShell({
               </div>
             </div>
           </div>
+          {demoActive && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
+              <span className="text-xs font-semibold text-orange-900">Simulated sensor anomaly</span>
+              <Select
+                value={demoStationId}
+                onValueChange={(stationId) => {
+                  setDemoStationId(stationId);
+                  selectStation(stationId);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[min(280px,100%)] text-xs" aria-label="Demo AWS station">
+                  <SelectValue placeholder="Choose AWS station" />
+                </SelectTrigger>
+                <SelectContent>
+                  {demoStations.map((station) => (
+                    <SelectItem key={station.station_id} value={station.station_id}>
+                      {station.name} · {station.station_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={demoScenario}
+                onValueChange={(value) => {
+                  const scenario = value as DemoScenario;
+                  const requiredStation =
+                    scenario === "TEMPERATURE_SPIKE"
+                      ? "AWS-ASSAM-001"
+                      : scenario === "PRESSURE_ANOMALY"
+                        ? "AWS-MEGHALAYA-002"
+                        : undefined;
+                  if (requiredStation) {
+                    setDemoStationId(requiredStation);
+                    selectStation(requiredStation);
+                  }
+                  setDemoScenario(scenario);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[210px] text-xs" aria-label="Demo scenario">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEMO_SCENARIOS.map((scenario) => (
+                    <SelectItem key={scenario.value} value={scenario.value}>
+                      {scenario.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" size="sm" variant="outline" onClick={resetDemo}>
+                Reset Demo
+              </Button>
+            </div>
+          )}
         </header>
 
         <main className="px-4 pb-24 pt-5 lg:px-6 lg:pb-8">
           <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+              <h1 className="min-w-0 break-words text-xl font-bold tracking-tight text-foreground lg:text-2xl">
                 {title}
               </h1>
               {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
@@ -327,13 +503,17 @@ export function KpiCard({
   value: string | number;
   unit?: string;
   icon: typeof Activity;
-  tone?: "default" | "high" | "critical" | "info";
+  tone?: "default" | "high" | "critical" | "info" | "healthy" | "warning" | "anomalous" | "offline";
 }) {
   const tones: Record<string, string> = {
     default: "bg-accent text-accent-foreground",
     high: "bg-risk-high-soft text-risk-high",
     critical: "bg-risk-critical-soft text-risk-critical",
     info: "bg-secondary text-secondary-foreground",
+    healthy: "bg-emerald-50 text-emerald-800",
+    warning: "bg-amber-50 text-amber-900",
+    anomalous: "bg-orange-50 text-orange-900",
+    offline: "bg-slate-100 text-slate-700",
   };
   return (
     <div className="rounded-lg border border-border bg-card p-4">

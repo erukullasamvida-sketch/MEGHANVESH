@@ -13,7 +13,11 @@ from .routers import (
     sensors,
     environmental,
     locations,
+    stations,
+    observations,
+    anomalies,
 )
+from .services.aws_demo_seed import seed_aws_demo_data
 
 
 app = FastAPI(
@@ -35,6 +39,7 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     create_db_and_tables()
+    seed_aws_demo_data()
 
 
 @app.get("/")
@@ -55,3 +60,7 @@ app.include_router(analytics.router)
 app.include_router(sensors.router)
 app.include_router(environmental.router)
 app.include_router(locations.router)
+app.include_router(stations.router)
+app.include_router(observations.router)
+app.include_router(anomalies.router)
+app.include_router(anomalies.health_router)

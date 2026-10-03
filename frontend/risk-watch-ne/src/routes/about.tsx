@@ -1,21 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AppShell } from "@/components/app-shell";
+import { AppShell, SectionCard } from "@/components/app-shell";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About — BHUSANKET" },
+      { title: "MEGHANVESH" },
       {
         name: "description",
         content:
-          "BHUSANKET combines AI-driven risk monitoring, early warning alerts, and field intelligence for landslide-prone regions.",
+          "AI/ML-based intelligent anomaly detection for Automatic Weather Stations, with explainable sensor findings and station health.",
       },
-      { property: "og:title", content: "About — BHUSANKET" },
+      { property: "og:title", content: "MEGHANVESH | About" },
       {
         property: "og:description",
-        content:
-          "Learn how BHUSANKET monitors landslide risk and supports rapid early warning decisions.",
+        content: "Monitor AWS data, detect sensor faults, and explain anomaly results.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -27,38 +26,43 @@ export const Route = createFileRoute("/about")({
 function AboutPage() {
   return (
     <AppShell
-      title="About BHUSANKET"
-      subtitle="AI-led landslide early warning for the North Eastern Region"
+      title="AI/ML-Based Intelligent Anomaly Detection for Automatic Weather Stations"
+      subtitle="MEGHANVESH · Ministry of Earth Sciences (MoES)"
     >
-      <div className="space-y-6">
-        <section className="rounded-xl border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-foreground">Mission</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            BHUSANKET helps monitor vulnerable slopes, predict elevated landslide risk,
-            and surface timely alerts to improve field response and public safety.
+      <div className="space-y-4">
+        <SectionCard title="Problem">
+          <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
+            AWS sensors continuously generate meteorological observations. Faulty sensors, sudden spikes, frozen readings, communication failures, and abnormal combinations can reduce data reliability and complicate downstream analysis.
           </p>
-        </section>
+        </SectionCard>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border bg-card p-5 shadow-sm">
-            <h3 className="font-semibold text-foreground">AI Monitoring</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Live location data and risk modeling identify where conditions are moving into a dangerous range.
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card p-5 shadow-sm">
-            <h3 className="font-semibold text-foreground">Rapid Alerts</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Decision-makers can quickly assess critical areas and respond before conditions worsen.
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card p-5 shadow-sm">
-            <h3 className="font-semibold text-foreground">Ground Truth</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Field reports and observed conditions strengthen situational awareness across the region.
-            </p>
-          </div>
-        </section>
+        <SectionCard title="System flow">
+          <ol className="grid gap-2 sm:grid-cols-5">
+            {["Monitor", "Detect", "Classify", "Explain", "Alert"].map((step, index) => (
+              <li key={step} className="flex items-center gap-2 rounded-md border border-border p-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-accent-foreground">{index + 1}</span>
+                <span className="text-sm font-semibold text-foreground">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </SectionCard>
+
+        <SectionCard title="Detection and station health">
+          <ul className="grid gap-x-8 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
+            {[
+              "Real-time analysis of the latest available observations (on request)",
+              "Sensor fault detection for spikes, frozen values, drift, and data quality",
+              "Temporal pattern analysis against station history",
+              "Multivariate consistency across temperature, pressure, and humidity",
+              "Cross-station comparison for shared changes",
+              "Evidence confidence with backend-provided anomaly reasons",
+              "Station health status and stale/offline awareness",
+            ].map((item) => <li key={item} className="flex gap-2"><span className="text-primary">•</span>{item}</li>)}
+          </ul>
+          <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+            The current interface uses seeded SIH26073 demo observations. It does not claim a live physical station feed.
+          </p>
+        </SectionCard>
       </div>
     </AppShell>
   );

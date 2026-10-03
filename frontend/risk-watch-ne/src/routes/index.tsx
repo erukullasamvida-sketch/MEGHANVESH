@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Mountain, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { testBackend } from"@/lib/api/test";
@@ -14,17 +14,17 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "BHUSANKET — AI Landslide Early Warning System" },
+      { title: "MEGHANVESH" },
       {
         name: "description",
         content:
-          "Sign in to BHUSANKET, an AI-based early warning and landslide risk monitoring system for the North Eastern Region of India.",
+            "Sign in to the SIH26073 Automatic Weather Station monitoring and anomaly detection system.",
       },
-      { property: "og:title", content: "BHUSANKET — AI Landslide Early Warning System" },
+          { property: "og:title", content: "MEGHANVESH | AWS Anomaly Monitoring" },
       {
         property: "og:description",
         content:
-          "Monitor, predict and respond to landslide risk across Assam and the North Eastern Region of India.",
+          "Monitor AWS station data, detect sensor faults, and review explainable anomaly alerts.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -155,12 +155,10 @@ function AuthPage() {
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_minmax(0,520px)]">
       <section className="relative hidden flex-col justify-between bg-navy p-10 lg:flex">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-primary">
-            <Mountain className="h-6 w-6 text-primary-foreground" />
-          </div>
+            <img src="/favicon.svg" alt="" className="h-11 w-11 rounded-lg" />
           <div>
-            <p className="text-lg font-bold text-white">BHUSANKET</p>
-            <p className="text-xs text-white/60">Government of India · NE Region</p>
+            <p className="text-lg font-bold text-white">MEGHANVESH</p>
+            <p className="text-xs text-white/60">SIH26073 · Ministry of Earth Sciences</p>
           </div>
         </div>
         <div className="max-w-lg">
@@ -168,16 +166,16 @@ function AuthPage() {
             Detect Early. Warn Faster. Act Smarter.
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/70">
-            Continuous monitoring of rainfall, soil moisture, slope and terrain across Assam and the
-            North Eastern Region — with predictive alerts, GIS mapping and field reporting for
-            disaster management teams.
+            Automatic Weather Stations continuously report temperature, atmospheric pressure, and
+            relative humidity. This system checks station history for spikes, frozen sensors,
+            communication issues, and inconsistent readings, then explains the evidence.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             {[
-              ["8", "Monitored locations"],
-              ["0", "Active alerts"],
-              ["24×7", "Monitoring"],
-              ["8", "Key locations"],
+              ["3", "Demo stations"],
+              ["3", "Sensor channels"],
+              ["24h", "History analysis"],
+              ["4", "Station states"],
             ].map(([value, label]) => (
               <div key={label} className="rounded-lg border border-white/10 bg-white/5 p-4">
                 <p className="text-2xl font-bold text-white">{value}</p>
@@ -187,19 +185,17 @@ function AuthPage() {
           </div>
         </div>
         <p className="text-xs text-white/40">
-          Smarter Insights. Safer Communities. A Resilient North East.
+          Monitor. Detect. Classify. Explain. Alert.
         </p>
       </section>
 
       <section className="flex items-center justify-center bg-background px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary">
-              <Mountain className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <img src="/favicon.svg" alt="" className="h-10 w-10 rounded-lg" />
             <div>
-              <p className="text-base font-bold text-foreground">BHUSANKET</p>
-              <p className="text-xs text-muted-foreground">AI Risk Monitoring</p>
+              <p className="text-base font-bold text-foreground">MEGHANVESH</p>
+              <p className="text-xs text-muted-foreground">SIH26073 anomaly detection</p>
             </div>
           </div>
 
@@ -223,7 +219,7 @@ function AuthPage() {
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="officer@bhusanket.in"
+                      placeholder="operator@weather.gov.in"
                     />
                   </div>
                   <div className="space-y-2">

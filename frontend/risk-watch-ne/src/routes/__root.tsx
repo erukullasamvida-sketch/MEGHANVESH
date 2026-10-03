@@ -11,8 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
+import { DemoAnomalyNotifier } from "@/components/app-shell";
 import { LocationSelectionProvider } from "../hooks/use-location-selection";
 import { DemoModeProvider } from "../hooks/use-demo-mode";
+import { StationSelectionProvider } from "../hooks/use-station-selection";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 
@@ -81,18 +83,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "BHUSANKET — AI Landslide Early Warning System" },
+      { title: "MEGHANVESH" },
       {
         name: "description",
         content:
-          "BHUSANKET is an AI-based early warning and landslide risk monitoring system for the North Eastern Region of India.",
+          "SIH26073 monitors Automatic Weather Station data and explains sensor anomalies.",
       },
-      { name: "author", content: "BHUSANKET" },
-      { property: "og:title", content: "BHUSANKET — AI Landslide Early Warning System" },
+      { name: "author", content: "MEGHANVESH AWS Monitoring" },
+      { property: "og:title", content: "MEGHANVESH | AWS Anomaly Monitoring" },
       {
         property: "og:description",
         content:
-          "Monitoring, predicting and alerting for landslide risk across Assam and the North Eastern Region.",
+          "AWS observations, explainable anomaly detection, sensor alerts, and station health.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -103,8 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      { rel: "shortcut icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
     ],
   }),
   shellComponent: RootShell,
@@ -134,8 +135,11 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LocationSelectionProvider>
         <DemoModeProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
+          <DemoAnomalyNotifier />
+          <StationSelectionProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </StationSelectionProvider>
         </DemoModeProvider>
       </LocationSelectionProvider>
       <Toaster position="top-right" richColors />

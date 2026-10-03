@@ -1,244 +1,249 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Info, Loader2, Play, RotateCcw } from "lucide-react";
+import { useEffect } from "react";
+import { Loader2, ScanSearch } from "lucide-react";
 
 import { AppShell, SectionCard } from "@/components/app-shell";
-import { RiskBadge } from "@/components/risk-badge";
-import { Button } from "@/components/ui/button";
-import { useDemoMode } from "@/hooks/use-demo-mode";
-import { useLocationSelection } from "@/hooks/use-location-selection";
-import { getPrediction } from "@/lib/api/prediction";
+import { SeverityBadge, StationStatusBadge } from "@/components/aws-status-badge";
+import { getAWSAnomalies, getAWSStationSnapshots } from "@/lib/api/aws";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useStationSelection } from "@/hooks/use-station-selection";
 import { useProfile } from "@/hooks/use-profile";
-import { type RiskLevel } from "@/lib/risk";
+import { useDemoMode } from "@/hooks/use-demo-mode";
+import { getDemoScenarioLabel, overlayDemoSnapshot } from "@/lib/demo-anomaly";
 
 export const Route = createFileRoute("/_authenticated/prediction")({
   head: () => ({
     meta: [
-      { title: "AI Prediction — BHUSANKET" },
+      { title: "MEGHANVESH" },
       {
         name: "description",
-        content: "Run a Random Forest landslide risk prediction for the Sohra monitoring zone.",
+        content: "Review AWS readings, anomaly classifications, confidence, and backend reasons.",
       },
-      { property: "og:title", content: "AI Prediction — BHUSANKET" },
+      { property: "og:title", content: "MEGHANVESH | Anomaly Detection" },
       {
         property: "og:description",
-        content: "Predictive landslide risk analysis for the North Eastern Region of India.",
+        content: "Explainable anomaly analysis for Automatic Weather Station observations.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: PredictionPage,
+  component: AnomalyDetectionPage,
 });
 
-function toRiskLevel(value: string): RiskLevel {
-  const normalized = value.toLowerCase();
-  if (normalized === "moderate" || normalized === "high" || normalized === "critical") {
-    return normalized;
-  }
-  return "low";
-}
-
-function PredictionPage() {
+function AnomalyDetectionPage() {
   const { data: profile } = useProfile();
-  const { selectedLocationId, selectedLocation } = useLocationSelection();
+  const { selectedStationId, selectStation } = useStationSelection();
   const {
     demoActive,
-    demoLevel,
-    demoAlertTriggered,
-    startDemo: startDemoMode,
-    stopDemo: stopDemoMode,
-    resetDemo: resetDemoMode,
+    demoStationId,
+    demoScenario,
+    demoStartedAt,
+    setDemoStationId,
   } = useDemoMode();
-  const { data: prediction, isFetching, error, refetch } = useQuery({
-    queryKey: ["prediction", selectedLocationId],
-    queryFn: () => {
-      if (selectedLocationId === null) {
-        throw new Error("Select a location before requesting a prediction.");
-      }
-      return getPrediction(selectedLocationId);
-    },
-    enabled: false,
+  const { data: stations = [] } = useQuery({
+    queryKey: ["aws_station_snapshots"],
+    queryFn: getAWSStationSnapshots,
+    refetchInterval: 30_000,
   });
+  const defaultStationId =
+    stations.find((item) => item.status !== "OFFLINE")?.station.station_id ??
+    stations[0]?.station.station_id ??
+    null;
+  const activeStationId = demoActive ? demoStationId : selectedStationId ?? defaultStationId;
+  const selected = stations.find((item) => item.station.station_id === activeStationId);
+  const displaySelected = selected && demoActive
+    ? overlayDemoSnapshot(selected, demoScenario, demoStartedAt)
+    : selected;
+  const { data: analysis = [], isLoading, error } = useQuery({
+    queryKey: ["aws_station_anomalies", activeStationId],
+    queryFn: () => getAWSAnomalies(activeStationId!),
+    enabled: Boolean(activeStationId),
+    refetchInterval: 15_000,
+  });
+  const latestResult = displaySelected?.demo?.result ?? analysis[0];
+  const recentAnomalies = analysis.filter((result) => result.anomaly_detected).slice(0, 6);
 
-  function runAnalysis() {
-    if (selectedLocationId === null) return;
-    void refetch();
-  }
-
-  function startDemo() {
-    if (selectedLocationId === null) return;
-    startDemoMode(selectedLocation?.name);
-  }
-
-  function stopDemo() {
-    stopDemoMode();
-  }
-
-  function resetDemo() {
-    resetDemoMode();
-  }
+  useEffect(() => {
+    if (!selectedStationId && defaultStationId) selectStation(defaultStationId);
+  }, [defaultStationId, selectStation, selectedStationId]);
 
   return (
     <AppShell
-      title="AI Prediction & Analytics"
-      subtitle="Model-driven landslide risk forecasting for the North Eastern Region"
+      title="Anomaly Detection"
+      subtitle="Inspect backend analysis or run a clearly labeled frontend demonstration"
       user={profile ? { name: profile.name, role: profile.roleLabel } : null}
     >
-      <div className="mb-4 flex items-start gap-3 rounded-lg border border-risk-moderate/40 bg-risk-moderate-soft p-3">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-risk-moderate" />
-        <p className="text-xs font-medium text-foreground">
-          Random Forest predictions support decision-making and do not replace official authority
-          assessment.
-        </p>
-      </div>
+      <SectionCard title="Select AWS station" description="Station analysis refreshes from the backend">
+        <Select
+          value={activeStationId ?? ""}
+          onValueChange={(stationId) => {
+            selectStation(stationId);
+            if (demoActive) setDemoStationId(stationId);
+          }}
+        >
+          <SelectTrigger className="max-w-xl">
+            <SelectValue placeholder="Choose a station" />
+          </SelectTrigger>
+          <SelectContent>
+            {stations.map(({ station }) => (
+              <SelectItem key={station.station_id} value={station.station_id}>
+                {station.name} · {station.station_id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SectionCard>
 
-      <SectionCard
-        title="Demo Mode — For Demonstration Only"
-        description="Frontend-only risk progression for presenting the alert workflow"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {selectedLocation ? selectedLocation.name : "Select a location first"}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-              {(["moderate", "high", "critical"] as RiskLevel[]).map((level, index) => (
-                <span key={level} className="flex items-center gap-2">
-                  <span className={demoLevel === level ? "text-foreground" : "text-muted-foreground"}>{level.toUpperCase()}</span>
-                  <RiskBadge level={level} className={demoLevel === level ? "ring-2 ring-primary/30" : "opacity-50"} />
-                  {index < 2 && <span className="text-muted-foreground">→</span>}
+      {displaySelected && (
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.85fr)]">
+          <SectionCard title={displaySelected.station.name} description={displaySelected.station.station_id}>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <StationStatusBadge status={displaySelected.status} />
+              {displaySelected.demo && (
+                <span className="rounded-md border border-orange-800/20 bg-orange-50 px-2 py-0.5 text-[11px] font-bold text-orange-900">
+                  DEMO MODE · Simulated sensor anomaly
                 </span>
-              ))}
-              <span className="text-muted-foreground">→</span>
-              <span className={demoAlertTriggered ? "text-risk-critical" : "text-muted-foreground"}>
-                Alert Triggered
-              </span>
-            </div>
-          </div>
-          {demoActive ? (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={stopDemo}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Stop Demo
-              </Button>
-              <Button variant="ghost" onClick={resetDemo}>
-                Reset
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={startDemo} disabled={selectedLocationId === null}>
-              <Play className="mr-2 h-4 w-4" />
-              Start Demo
-            </Button>
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Run Risk Prediction">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Backend location</p>
-            {selectedLocation ? (
-              <>
-                <p className="font-medium text-foreground">{selectedLocation.name}</p>
-                <p className="text-xs text-muted-foreground">{selectedLocation.district}</p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Select a location from the global search.
-              </p>
-            )}
-          </div>
-          <div className="flex items-end">
-            <Button
-              className="w-full lg:w-auto"
-              onClick={runAnalysis}
-              disabled={isFetching || selectedLocationId === null}
-            >
-              {isFetching ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="mr-2 h-4 w-4" />
               )}
-              Run Analysis
-            </Button>
-          </div>
-        </div>
-      </SectionCard>
-
-      <div className="mt-4">
-        <SectionCard title="Prediction Results" description="Random Forest output from FastAPI">
-          {isFetching && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Requesting the latest prediction from the backend…
-            </p>
-          )}
-          {!isFetching && error && (
-            <p className="py-10 text-center text-sm text-risk-critical">
-              Prediction request failed: {error instanceof Error ? error.message : "Unknown error"}
-            </p>
-          )}
-          {!isFetching && !error && !prediction && selectedLocationId === null && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Select a location from the global search before running an analysis.
-            </p>
-          )}
-          {!isFetching && prediction && (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="pb-2 pr-3 font-medium">Location</th>
-                    <th className="pb-2 pr-3 font-medium">Risk Level</th>
-                    <th className="pb-2 font-medium">Model Probability</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-border/60 last:border-0">
-                      <td className="py-2.5 pr-3 font-medium text-foreground">
-                        {selectedLocation?.name}
-                      </td>
-                      <td className="py-2.5 pr-3">
-                        <RiskBadge level={toRiskLevel(prediction.risk_level)} />
-                      </td>
-                      <td className="py-2.5 text-foreground">{(prediction.probability * 100).toFixed(1)}%</td>
-                    </tr>
-                </tbody>
-              </table>
+              {displaySelected.latestObservation && (
+                <span className="text-xs text-muted-foreground">
+                  Last observed {displaySelected.demo?.scenario === "COMMUNICATION_FAILURE" ? "stale" : new Date(displaySelected.latestObservation.timestamp).toLocaleString()}
+                </span>
+              )}
             </div>
-          )}
-        </SectionCard>
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Prediction Features" description="Values sent to the Random Forest model">
-          {prediction ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              {Object.entries(prediction.features).map(([name, value]) => (
-                <div key={name}>
-                  <dt className="text-xs text-muted-foreground">{name.replaceAll("_", " ")}</dt>
-                  <dd className="font-medium capitalize text-foreground">{value}</dd>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                ["Temperature", displaySelected.latestObservation?.temperature, "°C"],
+                ["Atmospheric pressure", displaySelected.latestObservation?.atmospheric_pressure, "hPa"],
+                ["Relative humidity", displaySelected.latestObservation?.relative_humidity, "%"],
+              ].map(([label, value, unit]) => (
+                <div key={String(label)} className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-xl font-semibold text-foreground">
+                    {value ?? "—"} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+                  </p>
                 </div>
               ))}
-            </dl>
-          ) : (
-            <p className="text-sm text-muted-foreground">Feature values will appear after analysis.</p>
-          )}
-        </SectionCard>
+            </div>
+            {displaySelected.demo && (
+              <p className="mt-3 text-sm font-medium text-foreground">{displaySelected.demo.healthMessage}</p>
+            )}
+          </SectionCard>
 
-        <SectionCard title="Model Explanation" description="Backend explanation for this prediction">
-          {prediction ? (
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              {prediction.explanation.map((item) => (
-                <li key={item}>{item}</li>
+          <SectionCard
+            title={displaySelected.demo ? "Simulated Demo Result" : "Latest observation analysis"}
+            description={displaySelected.demo ? "Deterministic frontend-only explanation; not sent to the backend" : "Rule-based result from the AWS history"}
+          >
+            {!displaySelected.demo && isLoading ? (
+              <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Analyzing station history…
+              </p>
+            ) : !displaySelected.demo && error ? (
+              <p className="py-8 text-sm text-destructive">Could not load station analysis.</p>
+            ) : latestResult ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground">
+                    {latestResult.anomaly_detected ? "ANOMALY DETECTED" : "NORMAL"}
+                  </span>
+                  <SeverityBadge severity={latestResult.severity} />
+                </div>
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Anomaly type</dt>
+                    <dd className="mt-1 font-medium text-foreground">{latestResult.anomaly_type}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Evidence confidence</dt>
+                    <dd className="mt-1 font-medium text-foreground">{latestResult.confidence}%</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs text-muted-foreground">Detected at</dt>
+                    <dd className="mt-1 font-medium text-foreground">{new Date(latestResult.detected_at).toLocaleString()}</dd>
+                  </div>
+                </dl>
+                <div className="border-t border-border pt-3">
+                  <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Why was this flagged?</h3>
+                  <ul className="space-y-2 text-sm text-foreground">
+                    {latestResult.reasons.map((reason, index) => <li key={`${index}-${reason}`}>{reason}</li>)}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <p className="py-8 text-sm text-muted-foreground">No observation analysis is available for this station.</p>
+            )}
+          </SectionCard>
+        </div>
+      )}
+
+      {demoActive && displaySelected?.demo && (
+        <SectionCard className="mt-4" title="Live Detection Demonstration" description="Simulated sensor values remain in the browser and never update backend records">
+          <div className="space-y-3">
+            <div className="rounded-md border border-orange-800/20 bg-orange-50/60 p-3">
+              <p className="text-xs font-bold uppercase text-orange-900">DEMO MODE · Sensor Input</p>
+              <p className="mt-2 text-sm text-foreground">
+                Temperature {displaySelected.latestObservation?.temperature} °C · Pressure {displaySelected.latestObservation?.atmospheric_pressure} hPa · Humidity {displaySelected.latestObservation?.relative_humidity} %
+              </p>
+              {demoScenario === "COMMUNICATION_FAILURE" && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Last seen: stale · Connection: {displaySelected.demo.connection} · Data quality: stale
+                </p>
+              )}
+            </div>
+            <p className="pl-4 text-muted-foreground">↓</p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["Detection", latestResult.anomaly_detected ? "Anomaly detected" : "No anomaly detected"],
+                ["Classification", getDemoScenarioLabel(demoScenario)],
+                ["Explanation", latestResult.reasons[0]],
+                ["Alert", latestResult.anomaly_detected ? "SIMULATED ALERT" : "No simulated alert"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-md border border-border p-3">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+                  {label === "Classification" && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <SeverityBadge severity={latestResult.severity} />
+                      <span className="text-xs text-muted-foreground">{latestResult.confidence}% confidence</span>
+                    </div>
+                  )}
+                </div>
               ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Explanation will appear after analysis.</p>
-          )}
+            </div>
+          </div>
         </SectionCard>
-      </div>
+      )}
+
+      <SectionCard className="mt-4" title="Recent flagged observations" description="Backend classifications for this station">
+        {recentAnomalies.length === 0 ? (
+          <p className="py-5 text-center text-sm text-muted-foreground">No flagged observations for this station.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {recentAnomalies.map((result) => (
+              <li key={result.observation_id} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{result.anomaly_type}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{result.reasons.join(" ")}</p>
+                </div>
+                <div className="flex items-center gap-2 sm:justify-end">
+                  <SeverityBadge severity={result.severity} />
+                  <time className="text-xs text-muted-foreground">{new Date(result.observation_timestamp).toLocaleString()}</time>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+      <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <ScanSearch className="h-3.5 w-3.5" /> Confidence is an evidence score, not a probability.
+      </p>
     </AppShell>
   );
 }
